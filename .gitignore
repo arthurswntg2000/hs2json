@@ -1,0 +1,22 @@
+# Diretórios de compilação do Cabal e Stack
+dist-newstyle/
+dist/
+.stack-work/
+
+# Ficheiros temporários e de ambiente
+*.o
+*.hi
+*.chi
+*.chs.h
+*.dyn_o
+*.dyn_hi
+
+# VS Code e ferramentas
+.vscode/
+.hie/
+.ghc.environment.*
+
+# Ficheiros do SO
+Thumbs.db
+Desktop.ini
+.DS_Store
