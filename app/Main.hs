@@ -1,6 +1,10 @@
 module Main where
 
 import SimpleJSON
+import PrettyJSON
 
 main :: IO ()
-main = print (JObject [("foo", JNumber 1.0), ("bar", JBool False)])
+main = do
+  putStrLn (renderJValue (JBool True))
+  putStrLn (renderJValue (JNumber 42.0))
+  putStrLn (renderJValue JNull)
