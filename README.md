@@ -11,8 +11,8 @@ Projeto da Avaliação da Unidade 2 da disciplina de Haskell (UFMA), desenvolvid
 
 ## Integrantes
 
-- Arthur Sampaio Pereira (<link do GitHub>)
-- André Moura Lima (<link do GitHub>)
+- Arthur Sampaio Pereira (<https://github.com/arthurswntg2000>)
+- André Moura Lima (<https://github.com/AndreMouraL>)
 
 ## Visão geral
 
