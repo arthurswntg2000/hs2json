@@ -9,7 +9,7 @@ import Test.QuickCheck
 
 import Prettify (Doc(..), empty, char, double, concatDoc, punctuate, fill, nest, text, line, compact, pretty, (<>))
 import PrettyJSON (renderJValue)
-import SimpleJSON (JValue(..))
+import SimpleJSON (JValue(..), getString, getInt, getDouble, getBool, getObject, getArray, isNull)
 import QuickTestes
 
 genTexto :: Gen String
@@ -25,6 +25,28 @@ instance Arbitrary Doc where
           , liftM2 Concat arbitrary arbitrary
           , liftM2 Union  arbitrary arbitrary
           , liftM2 Nest   arbitrary arbitrary ]
+
+-- gerador de JValue (capítulo 9): a profundidade é limitada por sized e o
+-- comprimento das listas por resize (n `div` 2); sem o resize, o listOf usa
+-- o tamanho ambiente do QuickCheck e a árvore cresce até travar a memória
+instance Arbitrary JValue where
+  arbitrary = sized genJValue
+
+genJValue :: Int -> Gen JValue
+genJValue n
+  | n <= 0    = folha
+  | otherwise = oneof [ folha
+                      , JArray  <$> resize (n `div` 2) (listOf (genJValue (n `div` 2)))
+                      , JObject <$> resize (n `div` 2) (listOf campo) ]
+  where
+    campo = (,) <$> arbitrary <*> genJValue (n `div` 2)
+    folha = oneof [ return JNull
+                  , JBool   <$> arbitrary
+                  , JNumber <$> genNumero
+                  , JString <$> arbitrary ]
+
+genNumero :: Gen Double
+genNumero = arbitrary `suchThat` (\d -> not (isNaN d || isInfinite d))
 
 -- empty é a identidade de (<>), dos dois lados
 prop_empty_id :: Doc -> Bool
@@ -104,6 +126,68 @@ prop_compact_text s = compact (text s) == s
 -- pretty de um documento sem softline não depende da largura (exercício 1 do capítulo 9)
 prop_pretty_text :: Int -> String -> Bool
 prop_pretty_text w s = pretty w (text s) == s
+
+-- accessors: cada um devolve o conteúdo certo para o seu construtor
+prop_getString :: String -> Bool
+prop_getString s = getString (JString s) == Just s
+
+prop_getBool :: Bool -> Bool
+prop_getBool b = getBool (JBool b) == Just b
+
+prop_getDouble :: Property
+prop_getDouble = forAll genNumero $ \d -> getDouble (JNumber d) == Just d
+
+prop_getInt :: Property
+prop_getInt = forAll (choose (-100000, 100000)) $ \n -> getInt (JNumber (fromIntegral n)) == Just n
+
+-- accessors: com o construtor errado, devolvem Nothing
+prop_accessorsCoerentes :: JValue -> Bool
+prop_accessorsCoerentes v =
+  case v of
+    JNull       -> isNull v && nenhum [s, i, d, b, o, a]
+    JBool x     -> not (isNull v) && getBool v == Just x && nenhum [s, i, d, o, a]
+    JNumber x   -> not (isNull v) && getDouble v == Just x && getInt v /= Nothing && nenhum [s, b, o, a]
+    JString x   -> not (isNull v) && getString v == Just x && nenhum [i, d, b, o, a]
+    JArray xs   -> not (isNull v) && getArray v == Just xs && nenhum [s, i, d, b, o]
+    JObject xs  -> not (isNull v) && getObject v == Just xs && nenhum [s, i, d, b, a]
+  where
+    s = fmap (const ()) (getString v)
+    i = fmap (const ()) (getInt v)
+    d = fmap (const ()) (getDouble v)
+    b = fmap (const ()) (getBool v)
+    o = fmap (const ()) (getObject v)
+    a = fmap (const ()) (getArray v)
+    nenhum = all (== Nothing)
+
+prop_isNull :: JValue -> Bool
+prop_isNull v = isNull v == (v == JNull)
+
+-- escapes: a saída de uma string não tem caractere de controle, DEL nem acima de \xff
+prop_escapesSeguros :: String -> Bool
+prop_escapesSeguros s = all seguro out && take 1 out == "\"" && take 1 (reverse out) == "\""
+  where out        = compact (renderJValue (JString s))
+        seguro c   = c >= ' ' && c /= '\x7f' && c <= '\xff'
+
+-- escapes: casos conhecidos
+prop_escapesConhecidos :: Property
+prop_escapesConhecidos =
+  once (   render "a\nb"   == "\"a\\nb\""
+        && render "a\tb"   == "\"a\\tb\""
+        && render "a\"b"   == "\"a\\\"b\""
+        && render "a\\b"   == "\"a\\\\b\""
+        && render "\233"   == "\"\233\""
+        && render "\1234"  == "\"\\u04d2\""
+        && render "\128512" == "\"\\ud83d\\ude00\"" )
+  where render = compact . renderJValue . JString
+
+-- layout: pretty (em qualquer largura) e compact só diferem em espaços e quebras de linha
+-- (dentro de strings JSON as quebras são escapadas, então \n na saída é sempre layout)
+prop_layoutEquivalente :: JValue -> Property
+prop_layoutEquivalente v =
+  forAll (choose (1, 100)) $ \w ->
+    semLayout (pretty w d) == semLayout (compact d)
+  where d          = renderJValue v
+        semLayout  = filter (`notElem` " \n")
 
 return []
 runTests :: IO Bool
