@@ -7,6 +7,7 @@ build-type:         Simple
 
 library
     exposed-modules:  SimpleJSON
+                    , Prettify
                     , PrettyJSON
     build-depends:    base >= 4.14 && < 5
     hs-source-dirs:   src
