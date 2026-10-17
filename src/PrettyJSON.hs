@@ -7,22 +7,24 @@ import Numeric (showHex)
 import Data.Char (ord)
 import Data.Bits (shiftR, (.&.))
 import SimpleJSON (JValue(..))
-import Prettify (Doc, string, text, double, char, (<>), fsep, concatDoc, enclose, punctuate)
+import Prettify (Doc, text, double, char, (<>), fsep, concatDoc, enclose, punctuate, nest)
 
 renderJValue :: JValue -> Doc
 renderJValue (JBool True)  = text "true"
 renderJValue (JBool False) = text "false"
 renderJValue JNull         = text "null"
 renderJValue (JNumber num) = double num
-renderJValue (JString str) = string str
+renderJValue (JString str) = stringDoc str
 renderJValue (JArray ary)  = series '[' ']' renderJValue ary
 renderJValue (JObject obj) = series '{' '}' field obj
-  where field (name, val)  = string name
+  where field (name, val)  = stringDoc name
                           <> text ": "
                           <> renderJValue val
 
+-- Os itens quebrados em várias linhas ficam indentados 2 espaços.
 series :: Char -> Char -> (a -> Doc) -> [a] -> Doc
 series open close item = enclose open close
+                       . nest 2
                        . fsep
                        . punctuate (char ',')
                        . map item
@@ -35,10 +37,11 @@ oneChar c = case lookup c simpleEscapes of
               Just ch -> text ch
               Nothing | mustEscape c -> hexEscape c
                       | otherwise    -> char c
-  where mustEscape char = char < ' ' || char == '\x7f' || char > '\xff'
+  where mustEscape ch = ch < ' ' || ch == '\x7f' || ch > '\xff'
 
 simpleEscapes :: [(Char, String)]
-simpleEscapes = zip " \b\n\r\t\\\"" [" ", "\\b", "\\n", "\\r", "\\t", "\\\\", "\\\""]
+simpleEscapes = zipWith ch "\b\n\f\r\t\\\"" "bnfrt\\\""
+  where ch a b = (a, ['\\', b])
 
 hexEscape :: Char -> Doc
 hexEscape c
