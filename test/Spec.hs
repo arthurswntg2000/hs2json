@@ -97,6 +97,14 @@ prop_stringsComAspas :: Property
 prop_stringsComAspas =
   once (compact (renderJValue (JString "oi")) == "\"oi\"")
 
+-- compact de um documento de texto puro devolve a própria string (capítulo 9)
+prop_compact_text :: String -> Bool
+prop_compact_text s = compact (text s) == s
+
+-- pretty de um documento sem softline não depende da largura (exercício 1 do capítulo 9)
+prop_pretty_text :: Int -> String -> Bool
+prop_pretty_text w s = pretty w (text s) == s
+
 return []
 runTests :: IO Bool
 runTests = $quickCheckAll
