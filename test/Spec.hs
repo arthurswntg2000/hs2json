@@ -8,6 +8,7 @@ import Test.QuickCheck
 import Prettify (fill, nest, text, line, compact, pretty, (<>))
 import PrettyJSON (renderJValue)
 import SimpleJSON (JValue(..))
+import QuickTestes
 
 genTexto :: Gen String
 genTexto = listOf (elements ['a' .. 'z'])
@@ -48,10 +49,19 @@ prop_stringsComAspas =
 main :: IO ()
 main = do
   resultados <- sequence
-    [ quickCheckResult prop_fillLargura
+    [ -- pretty printer (capítulo 6)
+      quickCheckResult prop_fillLargura
     , quickCheckResult prop_fillNaoCorta
     , quickCheckResult prop_nestIndenta
     , quickCheckResult prop_nestZero
     , quickCheckResult prop_stringsComAspas
+      -- ordenação (capítulo 8); prop_minimum falha de propósito, fica de fora
+    , quickCheckResult (prop_idempotent  :: [Integer] -> Bool)
+    , quickCheckResult (prop_minimum'    :: [Integer] -> Property)
+    , quickCheckResult (prop_ordered     :: [Integer] -> Bool)
+    , quickCheckResult (prop_permutation :: [Integer] -> Bool)
+    , quickCheckResult (prop_maximum     :: [Integer] -> Property)
+    , quickCheckResult (prop_append      :: [Integer] -> [Integer] -> Property)
+    , quickCheckResult (prop_sort_model  :: [Integer] -> Bool)
     ]
   unless (all isSuccess resultados) exitFailure
